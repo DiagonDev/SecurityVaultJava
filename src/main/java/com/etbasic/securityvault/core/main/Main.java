@@ -7,175 +7,151 @@ import com.etbasic.securityvault.core.model.VaultHeader;
 import com.etbasic.securityvault.core.model.VaultHeaderCodec;
 import com.etbasic.securityvault.core.model.VaultPayload;
 import com.etbasic.securityvault.core.persistence.FileVaultStore;
+import com.etbasic.securityvault.core.utils.Colors;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
+import org.jline.reader.LineReader;
+import org.jline.reader.LineReaderBuilder;
+import org.jline.terminal.Terminal;
+import org.jline.terminal.TerminalBuilder;
 
 import javax.crypto.AEADBadTagException;
-import java.io.BufferedReader;
-import java.io.Console;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 
 public class Main {
 
-    // Json pretty-print con Jackson (equivalente a Json { prettyPrint = true; encodeDefaults = true })
-    private static final ObjectMapper objectMapper = new ObjectMapper()
-            .enable(SerializationFeature.INDENT_OUTPUT);
-
-    // Per la lettura da stdin (equivalente a readLine())
-    private static final BufferedReader STDIN_READER =
-            new BufferedReader(new InputStreamReader(System.in));
+    private static final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     public static void main(String[] args) {
-        // directory locale dove salvare i vault (per semplicità)
         File vaultDir = new File("vaults");
         FileVaultStore store = new FileVaultStore(vaultDir);
 
-        System.out.println("Simple SecurityVault — demo CLI");
-
-        boolean running = true;
-        while (running) {
-            System.out.println();
-            System.out.println("Scegli: (1) crea  (2) apri  (3) aggiungi  (4) cambia-pw  (5) cancella  (q) esci");
-            String choice = readLineTrim();
-            switch (choice) {
-                case "1":
-                    createVaultFlow(store);
-                    break;
-                case "2":
-                    openVaultFlow(store);
-                    break;
-                case "3":
-                    addEntryFlow(store);
-                    break;
-                case "4":
-                    changePasswordFlow(store);
-                    break;
-                case "5":
-                    deleteFlow(store);
-                    break;
-                case "q":
-                case "Q":
-                    running = false;
-                    break;
-                default:
-                    System.out.println("scelta non valida");
-            }
-        }
-        System.out.println("bye");
-    }
-
-    // ---------- utility per input password (Console se disponibile, altrimenti stdin) ----------
-
-    private static char[] readPassword(String prompt) {
-        Console cons = System.console();
-        if (cons != null) {
-            return cons.readPassword(prompt);
-        } else {
-            // fallback (IDE): legge come stringa (meno sicuro perché visibile)
-            System.out.print(prompt);
-            String line = readLine();
-            if (line == null) line = "";
-            return line.toCharArray();
-        }
-    }
-
-    private static String readLineTrim() {
-        String line = readLine();
-        return line == null ? "" : line.trim();
-    }
-
-    private static String readLine() {
         try {
-            return STDIN_READER.readLine();
+            Terminal terminal = TerminalBuilder.builder()
+                    .name("Custom Terminal")
+                    .system(true)
+                    .dumb(false)
+                    .jna(true)
+                    .color(true)
+                    .encoding("UTF-8")
+                    .build();
+
+            LineReader reader = LineReaderBuilder.builder()
+                    .terminal(terminal)
+                    .build();
+
+            terminal.writer().println(Colors.get("yellow") + "SecurityVault - demo CLI" + Colors.get("reset"));
+            terminal.flush();
+
+            boolean running = true;
+            while (running) {
+                String choice = reader.readLine(Colors.get("cyan") + "Scegli: (1) crea  (2) apri  (3) aggiungi  (4) cambia-pw  (5) cancella  (q) esci: " + Colors.get("reset"));
+                switch (choice.trim()) {
+                    case "1" -> createVaultFlow(store, terminal, reader);
+                    case "2" -> openVaultFlow(store, terminal, reader);
+                    case "3" -> addEntryFlow(store, terminal, reader);
+                    case "4" -> changePasswordFlow(store, terminal, reader);
+                    case "5" -> deleteFlow(store, terminal, reader);
+                    case "q", "Q" -> running = false;
+                    default -> {
+                        terminal.writer().println(Colors.get("red") + "Scelta non valida" + Colors.get("reset"));
+                        terminal.flush();
+                    }
+                }
+            }
+
+            terminal.writer().println(Colors.get("green") + "Bye!" + Colors.get("reset"));
+            terminal.flush();
+
         } catch (IOException e) {
-            return null;
+            System.err.println("Error creating terminal: " + e.getMessage());
         }
     }
 
-    // ---------- Flusso: creare un nuovo vault ----------
+    // ---------- Utility per input ----------
 
-    private static void createVaultFlow(FileVaultStore store) {
-        System.out.print("Nome file vault (es. myvault.dat): ");
-        String filename = readLineTrim();
+    private static char[] readPassword(LineReader reader, String prompt) {
+        String pw = reader.readLine(Colors.get("magenta") + prompt + Colors.get("reset"), '*');
+        return pw.toCharArray();
+    }
+
+    private static String readLine(LineReader reader, String prompt) {
+        return reader.readLine(prompt);
+    }
+
+    // ---------- Flussi aggiornati ----------
+
+    private static void createVaultFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
+        terminal.writer().print(Colors.get("cyan") + "Nome file vault (es. myvault.dat): " + Colors.get("reset"));
+        terminal.flush();
+        String filename = reader.readLine("").trim();
+
         if (filename.isEmpty()) {
-            System.out.println("Nome richiesto");
+            terminal.writer().println(Colors.get("red") + "Nome richiesto" + Colors.get("reset"));
+            terminal.flush();
             return;
         }
 
-        char[] pwChars = readPassword("Scegli una master password: ");
+        char[] pwChars = readPassword(reader, "Scegli una master password: ");
         String pw = new String(pwChars);
-        Arrays.fill(pwChars, '\u0000'); // zeroizza il char[] originale per buona pratica
+        Arrays.fill(pwChars, '\u0000');
 
-        // parametri (didattici) — puoi adattarli alla policy della tua app
         int encIterations = 65536;
-        int keyLenBytes = 32; // AES-256
+        int keyLenBytes = 32;
 
-        // 1) stored auth hash (usato per verificare la password senza decifrare)
-        PBKDF2 authKdf = new PBKDF2(); // usa default (stesso usato in validatePassword)
+        PBKDF2 authKdf = new PBKDF2();
         String storedAuthHash = authKdf.hashPassword(pw);
 
-        // 2) enc salt e derivazione chiave
         byte[] encSalt = new byte[16];
         new SecureRandom().nextBytes(encSalt);
         PBKDF2 encKdf = new PBKDF2(encIterations, keyLenBytes * 8);
         byte[] encKey = encKdf.deriveKey(pw, encSalt);
 
-        // 3) crea header
-        VaultHeader header = new VaultHeader(
-                encSalt,
-                encIterations,
-                keyLenBytes,
-                storedAuthHash,
-                "sha256(header-json)"
-        );
+        VaultHeader header = new VaultHeader(encSalt, encIterations, keyLenBytes, storedAuthHash, "sha256(header-json)");
 
-        // 4) plaintext iniziale (vuoto)
         VaultPayload initialData = new VaultPayload();
         byte[] plaintext;
         try {
-            plaintext = objectMapper
-                    .writeValueAsString(initialData)
-                    .getBytes(StandardCharsets.UTF_8);
+            plaintext = objectMapper.writeValueAsString(initialData).getBytes(StandardCharsets.UTF_8);
         } catch (Exception e) {
-            System.out.println("Errore serializzazione iniziale: " + e.getMessage());
+            terminal.writer().println(Colors.get("red") + "Errore serializzazione iniziale: " + e.getMessage() + Colors.get("reset"));
+            terminal.flush();
             Arrays.fill(encKey, (byte) 0);
             return;
         }
 
-        // 5) AAD = sha256(header-json)
         byte[] aad = VaultHeaderCodec.aadOf(header);
 
-        // 6) cifra e salva (atomicamente)
         AesGcmCipher cipher = new AesGcmCipher();
         byte[] blob = cipher.encrypt(encKey, plaintext, aad);
         try {
             store.write(filename, header, blob);
-            System.out.println("Vault creato: " + store.exists(filename) + " (" + filename + ")");
+            terminal.writer().println(Colors.get("green") + "Vault creato: " + store.exists(filename) + " (" + filename + ")" + Colors.get("reset"));
+            terminal.flush();
         } catch (Exception e) {
-            System.out.println("Errore scrittura vault: " + e.getMessage());
+            terminal.writer().println(Colors.get("red") + "Errore scrittura vault: " + e.getMessage() + Colors.get("reset"));
+            terminal.flush();
         } finally {
-            // azzera key e plaintext in memoria
             Arrays.fill(encKey, (byte) 0);
             Arrays.fill(plaintext, (byte) 0);
         }
     }
 
-    // ---------- Flusso: aprire/unlock il vault e mostrare entries ----------
-
-    private static void openVaultFlow(FileVaultStore store) {
-        System.out.print("Nome file vault da aprire: ");
-        String filename = readLineTrim();
+    private static void openVaultFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
+        terminal.writer().print(Colors.get("cyan") + "Nome file vault da aprire: " + Colors.get("reset"));
+        terminal.flush();
+        String filename = reader.readLine("").trim();
         if (!store.exists(filename)) {
-            System.out.println("File non trovato");
+            terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
+            terminal.flush();
             return;
         }
 
-        char[] pwChars = readPassword("Inserisci la master password: ");
+        char[] pwChars = readPassword(reader, "Inserisci la master password: ");
         String pw = new String(pwChars);
         Arrays.fill(pwChars, '\u0000');
 
@@ -183,10 +159,10 @@ public class Main {
             var vf = store.read(filename);
             VaultHeader header = vf.getHeader();
 
-            // verifica password (auth)
             PBKDF2 authKdf = new PBKDF2();
             if (!authKdf.validatePassword(header.getStoredAuthHash(), pw)) {
-                System.out.println("Password errata");
+                terminal.writer().println(Colors.get("red") + "Password errata" + Colors.get("reset"));
+                terminal.flush();
                 return;
             }
 
@@ -196,41 +172,42 @@ public class Main {
 
             byte[] plain = new AesGcmCipher().decrypt(encKey, vf.getCiphertext(), aad);
 
-            VaultPayload vaultData = objectMapper.readValue(
-                    plain,
-                    VaultPayload.class
-            );
+            VaultPayload vaultData = objectMapper.readValue(plain, VaultPayload.class);
 
-            System.out.println("=== Entries (" + vaultData.getEntries().size() + ") ===");
+            terminal.writer().println(Colors.get("yellow") + "=== Entries (" + vaultData.getEntries().size() + ") ===" + Colors.get("reset"));
             for (int i = 0; i < vaultData.getEntries().size(); i++) {
                 VaultEntry e = vaultData.getEntries().get(i);
                 String notes = (e.getNotes() != null) ? e.getNotes() : "-";
-                System.out.println((i + 1) + ") " + e.getTitle()
+                terminal.writer().println((i + 1) + ") " + e.getTitle()
                         + "  [" + e.getUsername() + "] -> " + e.getPassword()
                         + "  notes:" + notes);
             }
+            terminal.flush();
 
-            // pulizia memoria
             Arrays.fill(encKey, (byte) 0);
             Arrays.fill(plain, (byte) 0);
         } catch (AEADBadTagException e) {
-            System.out.println("Decrittazione fallita (chiave/AAD errata o dati corrotti).");
+            terminal.writer().println(Colors.get("red") + "Decrittazione fallita (chiave/AAD errata o dati corrotti)." + Colors.get("reset"));
+            terminal.flush();
         } catch (Exception e) {
-            System.out.println("Errore aprendo il vault: " + e.getMessage());
+            terminal.writer().println(Colors.get("red") + "Errore aprendo il vault: " + e.getMessage() + Colors.get("reset"));
+            terminal.flush();
         }
     }
 
-    // ---------- Flusso: aggiungere una entry (legge -> modifica -> riscrive) ----------
+    // ---------- Aggiungi Entry ----------
 
-    private static void addEntryFlow(FileVaultStore store) {
-        System.out.print("Vault filename: ");
-        String filename = readLineTrim();
+    private static void addEntryFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
+        terminal.writer().print(Colors.get("cyan") + "Vault filename: " + Colors.get("reset"));
+        terminal.flush();
+        String filename = reader.readLine("").trim();
         if (!store.exists(filename)) {
-            System.out.println("File non trovato");
+            terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
+            terminal.flush();
             return;
         }
 
-        char[] pwChars = readPassword("Inserisci master password: ");
+        char[] pwChars = readPassword(reader, "Inserisci master password: ");
         String pw = new String(pwChars);
         Arrays.fill(pwChars, '\u0000');
 
@@ -238,10 +215,10 @@ public class Main {
             var vf = store.read(filename);
             VaultHeader header = vf.getHeader();
 
-            // auth
             PBKDF2 authKdf = new PBKDF2();
             if (!authKdf.validatePassword(header.getStoredAuthHash(), pw)) {
-                System.out.println("Password errata");
+                terminal.writer().println(Colors.get("red") + "Password errata" + Colors.get("reset"));
+                terminal.flush();
                 return;
             }
 
@@ -250,60 +227,55 @@ public class Main {
             byte[] aad = VaultHeaderCodec.aadOf(header);
 
             byte[] plain = new AesGcmCipher().decrypt(encKey, vf.getCiphertext(), aad);
+            VaultPayload vaultData = objectMapper.readValue(plain, VaultPayload.class);
 
-            VaultPayload vaultData = objectMapper.readValue(
-                    plain,
-                    VaultPayload.class
-            );
-
-            // input nuova entry
-            System.out.print("Titolo: ");
-            String title = readLineTrim();
-            System.out.print("Username: ");
-            String username = readLineTrim();
-            char[] passwordChars = readPassword("Password entry: ");
+            terminal.writer().print("Titolo: "); terminal.flush();
+            String title = reader.readLine("").trim();
+            terminal.writer().print("Username: "); terminal.flush();
+            String username = reader.readLine("").trim();
+            char[] passwordChars = readPassword(reader, "Password entry: ");
             String entryPw = new String(passwordChars);
             Arrays.fill(passwordChars, '\u0000');
-            System.out.print("Notes (opzionale): ");
-            String notes = readLine();
+            terminal.writer().print("Notes (opzionale): "); terminal.flush();
+            String notes = reader.readLine("");
 
             String id = String.valueOf(System.currentTimeMillis());
             VaultEntry entry = new VaultEntry(id, title, username, entryPw, notes);
             vaultData.getEntries().add(entry);
 
-            // serializza, cifra e riscrivi con stesso header
-            byte[] newPlain = objectMapper
-                    .writeValueAsString(vaultData)
-                    .getBytes(StandardCharsets.UTF_8);
-
+            byte[] newPlain = objectMapper.writeValueAsString(vaultData).getBytes(StandardCharsets.UTF_8);
             byte[] newBlob = new AesGcmCipher().encrypt(encKey, newPlain, aad);
             store.write(filename, header, newBlob);
-            System.out.println("Entry aggiunta.");
 
-            // pulizie
+            terminal.writer().println(Colors.get("green") + "Entry aggiunta." + Colors.get("reset"));
+            terminal.flush();
+
             Arrays.fill(encKey, (byte) 0);
             Arrays.fill(plain, (byte) 0);
             Arrays.fill(newPlain, (byte) 0);
+
         } catch (Exception e) {
-            System.out.println("Errore: " + e.getMessage());
+            terminal.writer().println(Colors.get("red") + "Errore: " + e.getMessage() + Colors.get("reset"));
+            terminal.flush();
         }
     }
 
-    // ---------- Flusso: cambiare password master ----------
+    // ---------- Cambia password master ----------
 
-    private static void changePasswordFlow(FileVaultStore store) {
-        System.out.print("Vault filename: ");
-        String filename = readLineTrim();
+    private static void changePasswordFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
+        terminal.writer().print("Vault filename: "); terminal.flush();
+        String filename = reader.readLine("").trim();
         if (!store.exists(filename)) {
-            System.out.println("File non trovato");
+            terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
+            terminal.flush();
             return;
         }
 
-        char[] oldPwChars = readPassword("Vecchia master password: ");
+        char[] oldPwChars = readPassword(reader, "Vecchia master password: ");
         String oldPw = new String(oldPwChars);
         Arrays.fill(oldPwChars, '\u0000');
 
-        char[] newPwChars = readPassword("Nuova master password: ");
+        char[] newPwChars = readPassword(reader, "Nuova master password: ");
         String newPw = new String(newPwChars);
         Arrays.fill(newPwChars, '\u0000');
 
@@ -311,81 +283,73 @@ public class Main {
             var vf = store.read(filename);
             VaultHeader header = vf.getHeader();
 
-            // auth vecchia
             PBKDF2 authKdf = new PBKDF2();
             if (!authKdf.validatePassword(header.getStoredAuthHash(), oldPw)) {
-                System.out.println("Vecchia password errata");
+                terminal.writer().println(Colors.get("red") + "Vecchia password errata" + Colors.get("reset"));
+                terminal.flush();
                 return;
             }
 
-            // decifra con chiave derivata dalla vecchia pw
             PBKDF2 encKdfOld = new PBKDF2(header.getEncIterations(), header.getKeyLenBytes() * 8);
             byte[] oldKey = encKdfOld.deriveKey(oldPw, header.getEncSalt());
             byte[] aadOld = VaultHeaderCodec.aadOf(header);
             byte[] plaintext = new AesGcmCipher().decrypt(oldKey, vf.getCiphertext(), aadOld);
 
-            VaultPayload vaultData = objectMapper.readValue(
-                    plaintext,
-                    VaultPayload.class
-            );
+            VaultPayload vaultData = objectMapper.readValue(plaintext, VaultPayload.class);
 
-            // ora rigenera header + key con la nuova password
             byte[] newEncSalt = new byte[16];
             new SecureRandom().nextBytes(newEncSalt);
-            int newEncIterations = header.getEncIterations(); // puoi cambiarlo se vuoi
+            int newEncIterations = header.getEncIterations();
             int newKeyLen = header.getKeyLenBytes();
             PBKDF2 encKdfNew = new PBKDF2(newEncIterations, newKeyLen * 8);
             byte[] newKey = encKdfNew.deriveKey(newPw, newEncSalt);
             String newStoredAuth = new PBKDF2().hashPassword(newPw);
 
-            // equivalente di header.copy(encSalt=..., encIterations=..., storedAuthHash=...)
-            VaultHeader newHeader = new VaultHeader(
-                    newEncSalt,
-                    newEncIterations,
-                    newKeyLen,
-                    newStoredAuth,
-                    header.getAadFormat()
-            );
-
+            VaultHeader newHeader = new VaultHeader(newEncSalt, newEncIterations, newKeyLen, newStoredAuth, header.getAadFormat());
             byte[] newAad = VaultHeaderCodec.aadOf(newHeader);
-            byte[] newPlain = objectMapper
-                    .writeValueAsString(vaultData)
-                    .getBytes(StandardCharsets.UTF_8);
+            byte[] newPlain = objectMapper.writeValueAsString(vaultData).getBytes(StandardCharsets.UTF_8);
             byte[] newBlob = new AesGcmCipher().encrypt(newKey, newPlain, newAad);
 
             store.write(filename, newHeader, newBlob);
-            System.out.println("Master password aggiornata.");
+            terminal.writer().println(Colors.get("green") + "Master password aggiornata." + Colors.get("reset"));
+            terminal.flush();
 
-            // pulizie
             Arrays.fill(oldKey, (byte) 0);
             Arrays.fill(newKey, (byte) 0);
             Arrays.fill(plaintext, (byte) 0);
             Arrays.fill(newPlain, (byte) 0);
 
         } catch (Exception e) {
-            System.out.println("Errore cambio password: " + e.getMessage());
+            terminal.writer().println(Colors.get("red") + "Errore cambio password: " + e.getMessage() + Colors.get("reset"));
+            terminal.flush();
         }
     }
 
-    // ---------- Flusso: cancellare file vault ----------
+    // ---------- Cancellazione vault ----------
 
-    private static void deleteFlow(FileVaultStore store) {
-        System.out.print("Vault filename da cancellare: ");
-        String filename = readLineTrim();
+    private static void deleteFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
+        terminal.writer().print("Vault filename da cancellare: "); terminal.flush();
+        String filename = reader.readLine("").trim();
         if (!store.exists(filename)) {
-            System.out.println("File non trovato");
+            terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
+            terminal.flush();
             return;
         }
-        System.out.print("Sei sicuro? (y/N): ");
-        if (!"y".equalsIgnoreCase(readLineTrim())) {
-            System.out.println("annullato");
+
+        terminal.writer().print("Sei sicuro? (y/N): "); terminal.flush();
+        if (!"y".equalsIgnoreCase(reader.readLine("").trim())) {
+            terminal.writer().println("Annullato");
+            terminal.flush();
             return;
         }
+
         try {
             boolean ok = store.delete(filename);
-            System.out.println("Cancellato: " + ok);
+            terminal.writer().println(Colors.get("green") + "Cancellato: " + ok + Colors.get("reset"));
+            terminal.flush();
         } catch (Exception e) {
-            System.out.println("Errore cancellazione: " + e.getMessage());
+            terminal.writer().println(Colors.get("red") + "Errore cancellazione: " + e.getMessage() + Colors.get("reset"));
+            terminal.flush();
         }
     }
 }

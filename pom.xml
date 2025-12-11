@@ -72,6 +72,12 @@
             <artifactId>jackson-annotations</artifactId>
             <version>2.17.2</version>
         </dependency>
+        <!-- Jline è la libreria per la cli avanzata -->
+        <dependency>
+            <groupId>org.jline</groupId>
+            <artifactId>jline</artifactId>
+            <version>3.30.0</version>
+        </dependency>
     </dependencies>
 
 </project>
