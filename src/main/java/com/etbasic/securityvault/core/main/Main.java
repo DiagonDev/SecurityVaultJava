@@ -8,6 +8,7 @@ import com.etbasic.securityvault.core.model.VaultHeaderCodec;
 import com.etbasic.securityvault.core.model.VaultPayload;
 import com.etbasic.securityvault.core.persistence.FileVaultStore;
 import com.etbasic.securityvault.core.utils.Colors;
+import com.etbasic.securityvault.core.utils.VerticalMenu;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.jline.reader.LineReader;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
+import java.util.List;
 
 public class Main {
 
@@ -40,6 +42,8 @@ public class Main {
                     .encoding("UTF-8")
                     .build();
 
+            terminal.enterRawMode();
+
             LineReader reader = LineReaderBuilder.builder()
                     .terminal(terminal)
                     .build();
@@ -47,22 +51,19 @@ public class Main {
             terminal.writer().println(Colors.get("yellow") + "SecurityVault - demo CLI" + Colors.get("reset"));
             terminal.flush();
 
-            boolean running = true;
-            while (running) {
-                String choice = reader.readLine(Colors.get("cyan") + "Scegli: (1) crea  (2) apri  (3) aggiungi  (4) cambia-pw  (5) cancella  (q) esci: " + Colors.get("reset"));
-                switch (choice.trim()) {
-                    case "1" -> createVaultFlow(store, terminal, reader);
-                    case "2" -> openVaultFlow(store, terminal, reader);
-                    case "3" -> addEntryFlow(store, terminal, reader);
-                    case "4" -> changePasswordFlow(store, terminal, reader);
-                    case "5" -> deleteFlow(store, terminal, reader);
-                    case "q", "Q" -> running = false;
-                    default -> {
-                        terminal.writer().println(Colors.get("red") + "Scelta non valida" + Colors.get("reset"));
-                        terminal.flush();
-                    }
-                }
-            }
+            // lista del menu
+            List<VerticalMenu.MenuItem> menuItems = List.of(
+                    new VerticalMenu.MenuItem("Crea vault", () -> createVaultFlow(store, terminal, reader)),
+                    new VerticalMenu.MenuItem("Apri vault", () -> openVaultFlow(store, terminal, reader)),
+                    new VerticalMenu.MenuItem("Aggiungi entry", () -> addEntryFlow(store, terminal, reader)),
+                    new VerticalMenu.MenuItem("Cambia password", () -> changePasswordFlow(store, terminal, reader)),
+                    new VerticalMenu.MenuItem("Cancella vault", () -> deleteFlow(store, terminal, reader)),
+                    new VerticalMenu.MenuItem("Esci", () -> System.exit(0))
+            );
+
+            new VerticalMenu(terminal, menuItems).show();
+
+
 
             terminal.writer().println(Colors.get("green") + "Bye!" + Colors.get("reset"));
             terminal.flush();
