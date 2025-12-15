@@ -4,8 +4,9 @@ import org.jline.terminal.Terminal;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
 import org.jline.utils.InfoCmp;
-import java.io.IOException;
 import java.util.List;
+import org.jline.keymap.KeyMap;
+import org.jline.keymap.BindingReader;
 
 /* Questa classe serve a rendere il menu iniziale interattivo,
 *  rendendo possibile spostarsi tra le varie voci del menu con le frecce ↓ e ↑ e
@@ -15,50 +16,44 @@ import java.util.List;
 public class VerticalMenu {
 
     private final Terminal terminal;
+    private final BindingReader bindingReader;
+    private final KeyMap<String> keyMap;
     private final List<MenuItem> menuItems;
-    private int selected = 0; // serve per impostare la selezione sulla prima righa
+    private int selected = 0; // serve per impostare la selezione sulla prima riga
 
     public VerticalMenu(Terminal terminal, List<MenuItem> menuItems) {
         this.terminal = terminal;
+        this.bindingReader = new BindingReader(terminal.reader());
+        this.keyMap = new KeyMap<>();
         this.menuItems = menuItems;
+
+        // Associa frecce e invio ad azioni logiche
+        keyMap.bind("up",    "\033[A");   // freccia su
+        keyMap.bind("down",  "\033[B");   // freccia giù
+        keyMap.bind("enter", "\r", "\n"); // invio (Win + Unix)
+        keyMap.bind("quit",  "\033");     // ESC per uscire
     }
 
     public void show() {
         while (true) {
             render();
 
-            /* I caratteri delle frecce sono composte in questo modo:
-            * ↑ => ESC[A
-            * ↓ => ESC[B
-            * */
+            String key_pressed = bindingReader.readBinding(keyMap);
 
-            int key0_pressed;
-            try {
-                key0_pressed = terminal.reader().read(); // legge solo il primo carattere
-            } catch (IOException e) {
-                return;
-            }
-
-            if (key0_pressed == 27) { // le frecce quando premute inviano dei caratteri che iniziano con ESC, in ASCII equivale a 27
-                try {
-                    int key1_pressed = terminal.reader().read();
-                    int key2_pressed = terminal.reader().read();
-                    if (key1_pressed == '[') {
-                        if (key2_pressed == 'A') {           // ↑
-                            selected = (selected - 1 + menuItems.size()) % menuItems.size(); // il modulo serve a tornare all'ultima voce se sei arrivato alla prima
-                        } else if (key2_pressed == 'B') {    // ↓
-                            selected = (selected + 1) % menuItems.size(); // il modulo serve a tornare alla prima voce se sei arrivato all'ultima
-                        }
-                    }
-                } catch (IOException ignored) {}
-            } else if (key0_pressed == '\n' || key0_pressed == '\r') { // ENTER, il \n è quello per Unix mentre \r è quello di windows
-                menuItems.get(selected).action.run(); // questo è quello che fa partire il metodo/voce selezionato
+            if ("up".equals(key_pressed)) {
+                selected = (selected - 1 + menuItems.size()) % menuItems.size();
+            } else if ("down".equals(key_pressed)) {
+                selected = (selected + 1) % menuItems.size();
+            } else if ("enter".equals(key_pressed)) {
+                menuItems.get(selected).action.run();
+            } else if ("quit".equals(key_pressed)) {
+                break;
             }
         }
     }
 
     private void render() {
-        terminal.puts(InfoCmp.Capability.clear_screen); // me l'ha consigliato chatty, serve a cancellare completamente il terminale per evitare "sbavature"
+        terminal.puts(InfoCmp.Capability.clear_screen); // serve a cancellare il terminale per evitare "sbavature"
         terminal.writer().println("Scegli:\n");
 
         for (int i = 0; i < menuItems.size(); i++) {
@@ -73,14 +68,12 @@ public class VerticalMenu {
             } else {
                 asb.append("  ");
             }
-
             asb.append(menuItems.get(i).label); // questo prende la voce corretta dalla lista
-            asb.style(AttributedStyle.DEFAULT); // questo fa il reset dello stile, sempre conisgliato da chatty
+            asb.style(AttributedStyle.DEFAULT); // questo fa il reset dello stile, sempre consigliato da chatty
 
-             // STAMPA MENU
-            terminal.writer().println(asb.toAnsi(terminal)); // questo fa comparire la voce sul terminale nel modo in cui hai desritto sopra
+            // STAMPA MENU
+            terminal.writer().println(asb.toAnsi(terminal)); // questo fa comparire la voce sul terminale nel modo in cui hai descritto sopra
         }
-
         terminal.flush();
     }
 

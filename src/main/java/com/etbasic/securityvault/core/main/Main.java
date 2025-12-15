@@ -15,7 +15,6 @@ import org.jline.reader.LineReader;
 import org.jline.reader.LineReaderBuilder;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
-
 import javax.crypto.AEADBadTagException;
 import java.io.File;
 import java.io.IOException;
@@ -80,14 +79,10 @@ public class Main {
         return pw.toCharArray();
     }
 
-    private static String readLine(LineReader reader, String prompt) {
-        return reader.readLine(prompt);
-    }
-
     // ---------- Flussi aggiornati ----------
 
     private static void createVaultFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
-        terminal.writer().print(Colors.get("cyan") + "Nome file vault (es. myvault.dat): " + Colors.get("reset"));
+        terminal.writer().print(Colors.get("cyan") + "Nome file vault (es. password.dat): " + Colors.get("reset"));
         terminal.flush();
         String filename = reader.readLine("").trim();
 
