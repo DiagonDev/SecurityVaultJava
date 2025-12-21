@@ -22,6 +22,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public class Main {
 
@@ -47,7 +48,7 @@ public class Main {
                     .terminal(terminal)
                     .build();
 
-            terminal.writer().println(Colors.get("yellow") + "SecurityVault - demo CLI" + Colors.get("reset"));
+
             terminal.flush();
 
             // lista del menu
@@ -89,6 +90,11 @@ public class Main {
         if (filename.isEmpty()) {
             terminal.writer().println(Colors.get("red") + "Nome richiesto" + Colors.get("reset"));
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -117,6 +123,11 @@ public class Main {
             terminal.writer().println(Colors.get("red") + "Errore serializzazione iniziale: " + e.getMessage() + Colors.get("reset"));
             terminal.flush();
             Arrays.fill(encKey, (byte) 0);
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException er) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -135,6 +146,12 @@ public class Main {
             Arrays.fill(encKey, (byte) 0);
             Arrays.fill(plaintext, (byte) 0);
         }
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static void openVaultFlow(FileVaultStore store, Terminal terminal, LineReader reader) {
@@ -144,6 +161,11 @@ public class Main {
         if (!store.exists(filename)) {
             terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -159,6 +181,11 @@ public class Main {
             if (!authKdf.validatePassword(header.getStoredAuthHash(), pw)) {
                 terminal.writer().println(Colors.get("red") + "Password errata" + Colors.get("reset"));
                 terminal.flush();
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
                 return;
             }
 
@@ -188,7 +215,20 @@ public class Main {
         } catch (Exception e) {
             terminal.writer().println(Colors.get("red") + "Errore aprendo il vault: " + e.getMessage() + Colors.get("reset"));
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException error) {
+                Thread.currentThread().interrupt();
+            }
         }
+
+        terminal.writer().println();
+        terminal.writer().println(
+                Colors.get("cyan") + "Premere Invio per tornare al menu..." + Colors.get("reset")
+        );
+        terminal.flush();
+
+        reader.readLine("");
     }
 
     // ---------- Aggiungi Entry ----------
@@ -200,6 +240,11 @@ public class Main {
         if (!store.exists(filename)) {
             terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -215,6 +260,11 @@ public class Main {
             if (!authKdf.validatePassword(header.getStoredAuthHash(), pw)) {
                 terminal.writer().println(Colors.get("red") + "Password errata" + Colors.get("reset"));
                 terminal.flush();
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
                 return;
             }
 
@@ -254,6 +304,12 @@ public class Main {
             terminal.writer().println(Colors.get("red") + "Errore: " + e.getMessage() + Colors.get("reset"));
             terminal.flush();
         }
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // ---------- Cambia password master ----------
@@ -264,6 +320,11 @@ public class Main {
         if (!store.exists(filename)) {
             terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -283,6 +344,11 @@ public class Main {
             if (!authKdf.validatePassword(header.getStoredAuthHash(), oldPw)) {
                 terminal.writer().println(Colors.get("red") + "Vecchia password errata" + Colors.get("reset"));
                 terminal.flush();
+                try {
+                    TimeUnit.SECONDS.sleep(1);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
                 return;
             }
 
@@ -319,6 +385,12 @@ public class Main {
             terminal.writer().println(Colors.get("red") + "Errore cambio password: " + e.getMessage() + Colors.get("reset"));
             terminal.flush();
         }
+
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     // ---------- Cancellazione vault ----------
@@ -329,6 +401,11 @@ public class Main {
         if (!store.exists(filename)) {
             terminal.writer().println(Colors.get("red") + "File non trovato" + Colors.get("reset"));
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -336,6 +413,11 @@ public class Main {
         if (!"y".equalsIgnoreCase(reader.readLine("").trim())) {
             terminal.writer().println("Annullato");
             terminal.flush();
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             return;
         }
 
@@ -346,6 +428,11 @@ public class Main {
         } catch (Exception e) {
             terminal.writer().println(Colors.get("red") + "Errore cancellazione: " + e.getMessage() + Colors.get("reset"));
             terminal.flush();
+        }
+        try {
+            TimeUnit.SECONDS.sleep(1);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
         }
     }
 }

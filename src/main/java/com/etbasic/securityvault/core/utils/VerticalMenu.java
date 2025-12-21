@@ -57,6 +57,7 @@ public class VerticalMenu {
 
     private void render() {
         terminal.puts(InfoCmp.Capability.clear_screen); // serve a cancellare il terminale per evitare "sbavature"
+        terminal.writer().println(Colors.get("yellow") + "SecurityVault - CLI" + Colors.get("reset"));
         terminal.writer().println("Scegli:\n");
 
         for (int i = 0; i < menuItems.size(); i++) {
