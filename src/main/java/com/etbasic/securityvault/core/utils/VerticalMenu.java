@@ -28,10 +28,13 @@ public class VerticalMenu {
         this.menuItems = menuItems;
 
         // Associa frecce e invio ad azioni logiche
-        keyMap.bind("up",    "\033[A");   // freccia su
-        keyMap.bind("down",  "\033[B");   // freccia giù
-        keyMap.bind("enter", "\r", "\n"); // invio (Win + Unix)
-        keyMap.bind("quit",  "\033");     // ESC per uscire
+        keyMap.bind("up", "\033[A");
+        keyMap.bind("down", "\033[B");
+
+        keyMap.bind("up", KeyMap.key(terminal, InfoCmp.Capability.key_up));
+        keyMap.bind("down", KeyMap.key(terminal, InfoCmp.Capability.key_down));
+        keyMap.bind("enter", "\r", "\n");
+        keyMap.bind("quit", KeyMap.esc());
     }
 
     public void show() {
